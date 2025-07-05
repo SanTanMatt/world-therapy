@@ -3,10 +3,13 @@
 
 export interface Message {
   id: string;
-  fromAddress: string;
-  toAddress: string;
+  fromAddress?: string; // Local storage format
+  from_address?: string; // Supabase format
+  toAddress?: string; // Local storage format
+  to_address?: string; // Supabase format
   content: string;
-  timestamp: Date;
+  timestamp?: Date; // Local storage format
+  created_at?: string; // Supabase format
   read: boolean;
 }
 

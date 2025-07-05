@@ -12,13 +12,13 @@ export default async function MessagesPage() {
   }
 
   return (
-    <>
-      <Page.Main className="h-full">
+    <Page>
+      <Page.Main className="h-full p-0">
         <Messages userAddress={session.user.walletAddress} username={session.user.username} />
       </Page.Main>
-      <Page.Bottom>
+      <Page.Footer>
         <Navigation />
-      </Page.Bottom>
-    </>
+      </Page.Footer>
+    </Page>
   );
 }

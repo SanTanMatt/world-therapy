@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Button, Input } from '@worldcoin/mini-apps-ui-kit-react';
+import { Button, Input, LiveFeedback } from '@worldcoin/mini-apps-ui-kit-react';
 import { Contact, Message } from '@/lib/messageStore';
 import { AddContact } from '@/components/AddContact';
+import { sendBlockchainMessage, getBlockchainConversation, BlockchainMessage } from '@/services/blockchain';
+import { CURRENT_NETWORK } from '@/config/contracts';
 
 interface MessagesProps {
   userAddress: string;
@@ -13,6 +15,10 @@ export const Messages = ({ userAddress, username }: MessagesProps) => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [blockchainMessages, setBlockchainMessages] = useState<BlockchainMessage[]>([]);
+  const [useBlockchain, setUseBlockchain] = useState(false); // Default to database
+  const [txStatus, setTxStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+  const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-project.supabase.co';
   const [newMessage, setNewMessage] = useState('');
   const [showAddContact, setShowAddContact] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -25,13 +31,21 @@ export const Messages = ({ userAddress, username }: MessagesProps) => {
   // Fetch messages when contact is selected
   useEffect(() => {
     if (selectedContact) {
-      fetchMessages(selectedContact.address);
-      const interval = setInterval(() => {
+      if (useBlockchain && CURRENT_NETWORK.messaging !== '0x0000000000000000000000000000000000000000') {
+        fetchBlockchainMessages(selectedContact.address);
+        const interval = setInterval(() => {
+          fetchBlockchainMessages(selectedContact.address);
+        }, 10000); // Poll every 10 seconds (blockchain is slower)
+        return () => clearInterval(interval);
+      } else {
         fetchMessages(selectedContact.address);
-      }, 5000); // Poll every 5 seconds
-      return () => clearInterval(interval);
+        const interval = setInterval(() => {
+          fetchMessages(selectedContact.address);
+        }, 5000); // Poll every 5 seconds
+        return () => clearInterval(interval);
+      }
     }
-  }, [selectedContact]);
+  }, [selectedContact, useBlockchain]);
 
   const fetchContacts = async () => {
     try {
@@ -53,28 +67,57 @@ export const Messages = ({ userAddress, username }: MessagesProps) => {
     }
   };
 
+  const fetchBlockchainMessages = async (contactAddress: string) => {
+    try {
+      const messages = await getBlockchainConversation(contactAddress);
+      setBlockchainMessages(messages);
+    } catch (error) {
+      console.error('Error fetching blockchain messages:', error);
+      // Fallback to local messages
+      setUseBlockchain(false);
+    }
+  };
+
   const sendMessage = async () => {
     if (!selectedContact || !newMessage.trim()) return;
 
     setLoading(true);
+    setTxStatus('pending');
+    
     try {
-      const response = await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          toAddress: selectedContact.address,
-          content: newMessage,
-        }),
-      });
-
-      if (response.ok) {
+      if (useBlockchain && CURRENT_NETWORK.messaging !== '0x0000000000000000000000000000000000000000') {
+        // Send on blockchain
+        const txHash = await sendBlockchainMessage(selectedContact.address, newMessage);
+        console.log('Message sent on blockchain:', txHash);
+        setTxStatus('success');
         setNewMessage('');
-        fetchMessages(selectedContact.address);
+        
+        // Wait a bit for blockchain to update
+        setTimeout(() => {
+          fetchBlockchainMessages(selectedContact.address);
+        }, 2000);
+      } else {
+        // Fallback to API
+        const response = await fetch('/api/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            toAddress: selectedContact.address,
+            content: newMessage,
+          }),
+        });
+
+        if (response.ok) {
+          setNewMessage('');
+          fetchMessages(selectedContact.address);
+        }
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      setTxStatus('error');
     } finally {
       setLoading(false);
+      setTimeout(() => setTxStatus('idle'), 3000);
     }
   };
 
@@ -87,14 +130,25 @@ export const Messages = ({ userAddress, username }: MessagesProps) => {
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="p-4 border-b">
-        <h1 className="text-2xl font-bold mb-2">Messages</h1>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => setShowAddContact(true)}
-        >
-          Add Contact
-        </Button>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold">Messages</h1>
+            <p className="text-xs text-gray-500 mt-1">
+              {isSupabaseConfigured 
+                ? '🟢 Using Supabase Database' 
+                : useBlockchain && CURRENT_NETWORK.messaging !== '0x0000000000000000000000000000000000000000'
+                  ? '⛓️ Using World Chain (Gas Free!)'
+                  : '💾 Using Local Storage'}
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setShowAddContact(true)}
+          >
+            Add Contact
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 flex">
@@ -133,42 +187,95 @@ export const Messages = ({ userAddress, username }: MessagesProps) => {
 
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                {messages.length === 0 ? (
-                  <p className="text-gray-500 text-center">No messages yet</p>
+                {useBlockchain && CURRENT_NETWORK.messaging !== '0x0000000000000000000000000000000000000000' ? (
+                  <>
+                    {blockchainMessages.length === 0 ? (
+                      <div className="text-center">
+                        <p className="text-gray-500">No blockchain messages yet</p>
+                        {CURRENT_NETWORK.messaging === '0x0000000000000000000000000000000000000000' && (
+                          <p className="text-xs text-orange-600 mt-2">
+                            Contract not deployed. Messages are local only.
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      blockchainMessages.map((message, index) => (
+                        <div
+                          key={index}
+                          className={`p-3 rounded-lg max-w-[70%] ${
+                            message.from.toLowerCase() === userAddress.toLowerCase()
+                              ? 'ml-auto bg-blue-500 text-white'
+                              : 'bg-gray-200'
+                          }`}
+                        >
+                          <p>{message.content}</p>
+                          <p className="text-xs mt-1 opacity-70">
+                            {new Date(Number(message.timestamp) * 1000).toLocaleTimeString()}
+                          </p>
+                          <p className="text-xs opacity-50">On-chain (Gas Free!)</p>
+                        </div>
+                      ))
+                    )}
+                  </>
                 ) : (
-                  messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`p-3 rounded-lg max-w-[70%] ${
-                        message.fromAddress === userAddress
-                          ? 'ml-auto bg-blue-500 text-white'
-                          : 'bg-gray-200'
-                      }`}
-                    >
-                      <p>{message.content}</p>
-                      <p className="text-xs mt-1 opacity-70">
-                        {new Date(message.timestamp).toLocaleTimeString()}
-                      </p>
-                    </div>
-                  ))
+                  <>
+                    {messages.length === 0 ? (
+                      <p className="text-gray-500 text-center">No messages yet</p>
+                    ) : (
+                      messages.map((message) => (
+                        <div
+                          key={message.id}
+                          className={`p-3 rounded-lg max-w-[70%] ${
+                            (message.fromAddress || message.from_address) === userAddress
+                              ? 'ml-auto bg-blue-500 text-white'
+                              : 'bg-gray-200'
+                          }`}
+                        >
+                          <p>{message.content}</p>
+                          <p className="text-xs mt-1 opacity-70">
+                            {new Date(message.timestamp || message.created_at).toLocaleTimeString()}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </>
                 )}
               </div>
 
               {/* Message Input */}
-              <div className="p-4 border-t flex gap-2">
-                <Input
-                  placeholder="Type a message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={sendMessage}
-                  disabled={loading || !newMessage.trim()}
-                >
-                  Send
-                </Button>
+              <div className="p-4 border-t">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Type a message..."
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                    className="flex-1"
+                  />
+                  <LiveFeedback
+                    label={{
+                      idle: 'Send',
+                      pending: 'Sending...',
+                      success: 'Sent!',
+                      error: 'Failed',
+                    }}
+                    state={txStatus}
+                  >
+                    <Button
+                      onClick={sendMessage}
+                      disabled={loading || !newMessage.trim()}
+                    >
+                      Send
+                    </Button>
+                  </LiveFeedback>
+                </div>
+                {useBlockchain && CURRENT_NETWORK.messaging === '0x0000000000000000000000000000000000000000' && (
+                  <p className="text-xs text-orange-600 mt-2">
+                    ⚠️ Contract not deployed on World Chain. Using local storage.
+                    <br />
+                    <span className="text-green-600">Deploy to World Chain mainnet for FREE gas!</span>
+                  </p>
+                )}
               </div>
             </>
           ) : (
