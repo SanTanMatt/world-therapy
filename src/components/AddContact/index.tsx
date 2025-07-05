@@ -104,7 +104,7 @@ export const AddContact = ({ userAddress, onClose, onContactAdded }: AddContactP
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg p-6 max-w-md w-full">
-        <h2 className="text-xl font-bold mb-4">Add New Contact</h2>
+        <h2 className="text-xl font-bold mb-4">Enter Therapists Wallet Address</h2>
         
         <div className="space-y-4">
           <div>
@@ -117,9 +117,9 @@ export const AddContact = ({ userAddress, onClose, onContactAdded }: AddContactP
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Username</label>
+            <label className="block text-sm font-medium mb-1">Therapists Name</label>
             <Input
-              placeholder="Contact name"
+              placeholder="Therapists name"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
             />

@@ -1,14 +1,17 @@
 import { Page } from '@/components/PageLayout';
 import { AuthButton } from '../components/AuthButton';
-import { TestButton } from '../components/TestButton';
 
 export default function Home() {
   return (
     <Page>
-      <Page.Main className="flex flex-col items-center justify-center gap-4">
-        <AuthButton />
-        <div className="mt-4 pt-4 border-t">
-          <TestButton />
+      <Page.Main className="flex flex-col items-center justify-center h-full">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-medium text-gray-700 mb-8">
+              Sometimes we all just need to talk to a Human.
+            </h1>
+            <AuthButton />
+          </div>
         </div>
       </Page.Main>
     </Page>

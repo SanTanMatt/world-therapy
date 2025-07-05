@@ -51,22 +51,24 @@ export const AuthButton = () => {
   // Users should explicitly click the button to authenticate
 
   return (
-    <LiveFeedback
-      label={{
-        failed: 'Failed to login',
-        pending: 'Logging in',
-        success: 'Logged in',
-      }}
-      state={isPending ? 'pending' : undefined}
-    >
-      <Button
-        onClick={onClick}
-        disabled={isPending}
-        size="lg"
-        variant="primary"
+    <div className="flex justify-center">
+      <LiveFeedback
+        label={{
+          failed: 'Failed to login',
+          pending: 'Logging in',
+          success: 'Logged in',
+        }}
+        state={isPending ? 'pending' : undefined}
       >
-        Login with Wallet
-      </Button>
-    </LiveFeedback>
+        <Button
+          onClick={onClick}
+          disabled={isPending}
+          size="lg"
+          variant="primary"
+        >
+          Login with Wallet
+        </Button>
+      </LiveFeedback>
+    </div>
   );
 };

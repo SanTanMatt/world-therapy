@@ -146,7 +146,7 @@ export const Messages = ({ userAddress, username }: MessagesProps) => {
             variant="secondary"
             onClick={() => setShowAddContact(true)}
           >
-            Add Contact
+            Find Therapist
           </Button>
         </div>
       </div>
