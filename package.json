@@ -1,8 +1,8 @@
 {
-  "name": "@worldcoin/next-15-template",
+  "name": "etherapy",
   "version": "0.1.0",
   "homepage": "https://docs.worldcoin.org/mini-apps",
-  "description": "Create a Mini App",
+  "description": "eTherapy - Mental Health Support Mini App",
   "license": "MIT",
   "private": true,
   "type": "module",

@@ -1,6 +1,5 @@
 import { MiniKit } from '@worldcoin/minikit-js';
 import { signIn } from 'next-auth/react';
-import { getNewNonces } from './server-helpers';
 
 /**
  * Authenticates a user via their wallet using a nonce-based challenge-response mechanism.
@@ -13,13 +12,38 @@ import { getNewNonces } from './server-helpers';
  * @throws {Error} If wallet authentication fails at any step.
  */
 export const walletAuth = async () => {
-  const { nonce, signedNonce } = await getNewNonces();
+  console.log('Starting wallet auth...');
+  console.log('Window location:', window.location.origin);
+  console.log('MiniKit available:', typeof MiniKit !== 'undefined');
+  console.log('MiniKit installed:', MiniKit.isInstalled());
+  
+  if (!MiniKit.isInstalled()) {
+    throw new Error('MiniKit is not installed. Please ensure you are accessing the app through World App.');
+  }
+  
+  let nonce, signedNonce;
+  try {
+    const response = await fetch('/api/nonce');
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to get nonce');
+    }
+    
+    nonce = data.nonce;
+    signedNonce = data.signedNonce;
+    console.log('Got nonces:', { nonce, signedNonce });
+  } catch (error) {
+    console.error('Failed to get nonces:', error);
+    throw error;
+  }
 
+  console.log('Calling MiniKit.commandsAsync.walletAuth...');
   const result = await MiniKit.commandsAsync.walletAuth({
     nonce,
     expirationTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     notBefore: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    statement: `Authenticate (${crypto.randomUUID().replace(/-/g, '')}).`,
+    statement: `Authenticate (${self.crypto.randomUUID().replace(/-/g, '')}).`,
   });
   console.log('Result', result);
   if (!result) {

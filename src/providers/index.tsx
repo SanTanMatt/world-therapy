@@ -37,8 +37,14 @@ export default function ClientProviders({
   useEffect(() => {
     // Install MiniKit with the app ID
     const appId = process.env.NEXT_PUBLIC_APP_ID;
+    console.log('Installing MiniKit with app ID:', appId);
     if (appId) {
       MiniKit.install(appId);
+      console.log('MiniKit.install() called');
+      // Check if MiniKit is installed after a short delay
+      setTimeout(() => {
+        console.log('MiniKit installed check:', MiniKit.isInstalled());
+      }, 1000);
     } else {
       console.error('NEXT_PUBLIC_APP_ID is not defined');
     }

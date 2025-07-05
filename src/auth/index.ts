@@ -1,4 +1,4 @@
-import { hashNonce } from '@/auth/wallet/client-helpers';
+import crypto from 'crypto';
 import {
   MiniAppWalletAuthSuccessPayload,
   MiniKit,
@@ -6,6 +6,13 @@ import {
 } from '@worldcoin/minikit-js';
 import NextAuth, { type DefaultSession } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+
+// Hash nonce helper function
+const hashNonce = ({ nonce }: { nonce: string }) => {
+  const hmac = crypto.createHmac('sha256', process.env.HMAC_SECRET_KEY!);
+  hmac.update(nonce);
+  return hmac.digest('hex');
+};
 
 declare module 'next-auth' {
   interface User {

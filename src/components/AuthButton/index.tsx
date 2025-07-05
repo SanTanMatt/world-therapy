@@ -1,6 +1,7 @@
 'use client';
 import { walletAuth } from '@/auth/wallet';
 import { Button, LiveFeedback } from '@worldcoin/mini-apps-ui-kit-react';
+import { MiniKit } from '@worldcoin/minikit-js';
 import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
 import { useCallback, useState } from 'react';
 
@@ -14,14 +15,31 @@ export const AuthButton = () => {
   const { isInstalled } = useMiniKit();
 
   const onClick = useCallback(async () => {
-    if (!isInstalled || isPending) {
+    console.log('AuthButton - isInstalled from hook:', isInstalled);
+    console.log('AuthButton - MiniKit.isInstalled():', MiniKit.isInstalled());
+    
+    if (isPending) {
+      return;
+    }
+    
+    // Wait a bit for MiniKit to be ready if not installed
+    if (!isInstalled && !MiniKit.isInstalled()) {
+      console.log('MiniKit not ready, waiting...');
+      setTimeout(() => {
+        onClick();
+      }, 1000);
       return;
     }
     setIsPending(true);
     try {
       await walletAuth();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Wallet authentication button error', error);
+      console.error('Error details:', {
+        message: error?.message,
+        digest: error?.digest,
+        stack: error?.stack
+      });
       setIsPending(false);
       return;
     }
