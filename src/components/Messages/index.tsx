@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { Button, Input, LiveFeedback } from '@worldcoin/mini-apps-ui-kit-react';
 import { Contact, Message } from '@/lib/messageStore';
 import { AddContact } from '@/components/AddContact';
+import { TherapistSelection } from '@/components/TherapistSelection';
+import { PaymentModal } from '@/components/PaymentModal';
 import { sendBlockchainMessage, getBlockchainConversation, BlockchainMessage } from '@/services/blockchain';
 import { CURRENT_NETWORK } from '@/config/contracts';
 
@@ -21,6 +23,8 @@ export const Messages = ({ userAddress, username }: MessagesProps) => {
   const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-project.supabase.co';
   const [newMessage, setNewMessage] = useState('');
   const [showAddContact, setShowAddContact] = useState(false);
+  const [showTherapistSelection, setShowTherapistSelection] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Fetch contacts
@@ -126,6 +130,24 @@ export const Messages = ({ userAddress, username }: MessagesProps) => {
     setShowAddContact(false);
   };
 
+  const handleTherapistSelected = (contact: Contact) => {
+    setContacts([...contacts, contact]);
+    setShowTherapistSelection(false);
+    setSelectedContact(contact);
+  };
+
+  const handleManualEntry = () => {
+    setShowTherapistSelection(false);
+    setShowAddContact(true);
+  };
+
+  const handlePayment = async (amount: string) => {
+    // TODO: Implement actual payment logic
+    console.log(`Payment of ${amount} USDC to ${selectedContact?.username}`);
+    alert(`Payment of ${amount} USDC to ${selectedContact?.username} initiated!`);
+    setShowPaymentModal(false);
+  };
+
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
@@ -141,13 +163,28 @@ export const Messages = ({ userAddress, username }: MessagesProps) => {
                   : '💾 Using Local Storage'}
             </p>
           </div>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => setShowAddContact(true)}
-          >
-            Find Therapist
-          </Button>
+          <div className="flex flex-col gap-4">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setShowTherapistSelection(true)}
+            >
+              Find Therapist
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => {
+                if (!selectedContact) {
+                  alert('Please select a therapist first');
+                  return;
+                }
+                setShowPaymentModal(true);
+              }}
+            >
+              Pay
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -286,12 +323,30 @@ export const Messages = ({ userAddress, username }: MessagesProps) => {
         </div>
       </div>
 
+      {/* Therapist Selection Modal */}
+      {showTherapistSelection && (
+        <TherapistSelection
+          onClose={() => setShowTherapistSelection(false)}
+          onTherapistSelected={handleTherapistSelected}
+          onManualEntry={handleManualEntry}
+        />
+      )}
+
       {/* Add Contact Modal */}
       {showAddContact && (
         <AddContact
           userAddress={userAddress}
           onClose={() => setShowAddContact(false)}
           onContactAdded={handleContactAdded}
+        />
+      )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && selectedContact && (
+        <PaymentModal
+          contact={selectedContact}
+          onClose={() => setShowPaymentModal(false)}
+          onPay={handlePayment}
         />
       )}
     </div>
